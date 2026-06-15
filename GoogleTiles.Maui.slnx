@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/Solution Items/">
+    <File Path="README.md" />
+  </Folder>
+  <Project Path="GoogleTiles.Maui.Core.Tests/GoogleTiles.Maui.Core.Tests.csproj" />
+  <Project Path="GoogleTiles.Maui.Core/GoogleTiles.Maui.Core.csproj" />
+  <Project Path="GoogleTiles.Maui.Sample/GoogleTiles.Maui.Sample.csproj" />
+  <Project Path="GoogleTiles.Maui/GoogleTiles.Maui.csproj" />
+</Solution>
