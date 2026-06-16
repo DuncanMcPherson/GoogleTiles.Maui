@@ -2,7 +2,7 @@
 
 namespace GoogleTiles.Maui.Core.Projection;
 
-public static class WebMercatorProjection
+internal static class WebMercatorProjection
 {
     public const int TileSize = 256;
     public const int MinZoom = 0;

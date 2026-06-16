@@ -9,6 +9,11 @@ public static class MauiProgram
         var builder = MauiApp.CreateBuilder();
         builder
             .UseMauiApp<App>()
+            .UseGoogleTiles(options =>
+            {
+                options.ApiKey = "AIzaSyDoLfB5e9oi6_SizVPmlcEdZ71ZRXymgMk";
+                options.EnableCaching = true;
+            })
             .ConfigureFonts(fonts =>
             {
                 fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular");

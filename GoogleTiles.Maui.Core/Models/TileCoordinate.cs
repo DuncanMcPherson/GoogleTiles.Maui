@@ -1,3 +1,3 @@
 ﻿namespace GoogleTiles.Maui.Core.Models;
 
-public record TileCoordinate(int X, int Y, int Zoom);
+internal record TileCoordinate(int X, int Y, int Zoom);

@@ -1,4 +1,4 @@
-﻿namespace GoogleTiles.Maui.Core.Tests;
+﻿namespace GoogleTiles.Maui.Core.Tests.Projection;
 
 [TestFixture]
 public class WebMercatorProjectionTests
