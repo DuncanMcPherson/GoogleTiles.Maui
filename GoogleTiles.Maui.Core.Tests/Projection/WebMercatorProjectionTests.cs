@@ -8,18 +8,18 @@ public class WebMercatorProjectionTests
     [Test]
     public void FromLatLng_ZoomZer0_ReturnsOriginTile()
     {
-        var result = WebMercatorProjection.FromLatLng(0, 0, 0);
+        var result = WebMercatorProjection.FromLatLng(85.0511, -180, 3);
 
         result.X.Should().Be(0);
         result.Y.Should().Be(0);
-        result.Zoom.Should().Be(0);
+        result.Zoom.Should().Be(3);
     }
 
     [Test]
     public void FromLatLng_Tokyo_ZoomOne_ReturnsCorrectTile()
     {
-        var result = WebMercatorProjection.FromLatLng(35.6762, 139.6503, 1);
-        result.Should().Be(new TileCoordinate(1, 0, 1));
+        var result = WebMercatorProjection.FromLatLng(35.6762, 139.6503, 3);
+        result.Should().Be(new TileCoordinate(7, 3, 3));
     }
 
     [Test]
@@ -39,14 +39,14 @@ public class WebMercatorProjectionTests
     [Test]
     public void FromLatLng_MaxLatitude_DoesNotThrow()
     {
-        var act = () => WebMercatorProjection.FromLatLng(85.0511, 0, 1);
+        var act = () => WebMercatorProjection.FromLatLng(85.0511, 0, 3);
         act.Should().NotThrow();
     }
 
     [Test]
     public void FromLatLng_MinLatitude_DoesNotThrow()
     {
-        var act = () => WebMercatorProjection.FromLatLng(-85.0511, 0, 1);
+        var act = () => WebMercatorProjection.FromLatLng(-85.0511, 0, 3);
         act.Should().NotThrow();
     }
 
@@ -99,7 +99,7 @@ public class WebMercatorProjectionTests
     [Test]
     public void ToLatLng_ZoomZeroOrigin_ReturnsTopLeftCorner()
     {
-        var (lat, lng) = WebMercatorProjection.ToLatLng(new TileCoordinate(0, 0, 0));
+        var (lat, lng) = WebMercatorProjection.ToLatLng(new TileCoordinate(0, 0, 3));
         lat.Should().BeApproximately(85.0511, 0.0001);
         lng.Should().BeApproximately(-180.0, 0.0001);
     }

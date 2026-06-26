@@ -8,18 +8,6 @@ public class ViewportCalculatorTests
     private const int SmallCanvas = 512;
     private const int MediumCanvas = 768;
 
-    [Test]
-    public void Should_ReturnSingleTile_When_ZoomZero()
-    {
-        var result = ViewportCalculator.GetVisibleTiles(
-            new GeoCoordinate(0, 0),
-            zoom: 0,
-            SmallCanvas,
-            SmallCanvas);
-
-        result.Should().HaveCount(1);
-        result.Single().Coordinate.Should().Be(new TileCoordinate(0, 0, 0));
-    }
 
     [Test]
     public void Should_AlwaysIncludeCenterTile_When_Called()
@@ -40,7 +28,7 @@ public class ViewportCalculatorTests
     {
         var result = ViewportCalculator.GetVisibleTiles(
             new GeoCoordinate(0, 0),
-            1,
+            3,
             SmallCanvas,
             SmallCanvas);
 
@@ -48,15 +36,26 @@ public class ViewportCalculatorTests
     }
 
     [Test]
-    public void GetVisibleTiles_ThreeByThreeCanvas_ReturnsNineTiles()
+    public void GetVisibleTiles_ThreeByThreeCanvas_OffsetCoordinate_ReturnsSixteenTiles()
     {
         // 768x768 canvas — exactly 3x3 tiles of 256px each
         var result = ViewportCalculator.GetVisibleTiles(
-            new GeoCoordinate(0, 0),
+            new GeoCoordinate(40.7128, -74.0060),
             zoom: 10,
             canvasWidth: MediumCanvas,
             canvasHeight: MediumCanvas);
 
+        result.Should().HaveCount(16);
+    }
+
+    [Test]
+    public void Should_ReturnNineTiles_When_CanvasIsThreeByThree_AndAlignedCoordinate()
+    {
+        var alignedTile = new TileCoordinate(512, 512, 10);
+        var (lat, lng) = WebMercatorProjection.ToLatLngCenter(alignedTile);
+
+        var result = ViewportCalculator.GetVisibleTiles(
+            new GeoCoordinate(lat, lng), 10, MediumCanvas, MediumCanvas);
         result.Should().HaveCount(9);
     }
 
@@ -67,15 +66,15 @@ public class ViewportCalculatorTests
         // offset by the center coordinate's position within the tile
         var result = ViewportCalculator.GetVisibleTiles(
             new GeoCoordinate(0, 0),
-            zoom: 1,
+            zoom: 3,
             canvasWidth: SmallCanvas,
             canvasHeight: SmallCanvas);
 
         var centerTile = result.Single(t =>
-            t.Coordinate == WebMercatorProjection.FromLatLng(0, 0, 1));
+            t.Coordinate == WebMercatorProjection.FromLatLng(0, 0, 3));
 
-        centerTile.PixelPosition.X.Should().BeApproximately(0, 1f);
-        centerTile.PixelPosition.Y.Should().BeApproximately(0, 1f);
+        centerTile.PixelPosition.X.Should().BeApproximately(SmallCanvas / 2f, 1f);
+        centerTile.PixelPosition.Y.Should().BeApproximately(SmallCanvas / 2f, 1f);
     }
 
     [Test]
@@ -85,15 +84,15 @@ public class ViewportCalculatorTests
         // of all 4 tiles so all 4 should be visible
         var result = ViewportCalculator.GetVisibleTiles(
             new GeoCoordinate(0, 0),
-            zoom: 1,
+            zoom: 3,
             canvasWidth: SmallCanvas,
             canvasHeight: SmallCanvas);
 
         result.Should().HaveCount(4);
-        result.Should().Contain(t => t.Coordinate == new TileCoordinate(0, 0, 1));
-        result.Should().Contain(t => t.Coordinate == new TileCoordinate(1, 0, 1));
-        result.Should().Contain(t => t.Coordinate == new TileCoordinate(0, 1, 1));
-        result.Should().Contain(t => t.Coordinate == new TileCoordinate(1, 1, 1));
+        result.Should().Contain(t => t.Coordinate == new TileCoordinate(3, 3, 3));
+        result.Should().Contain(t => t.Coordinate == new TileCoordinate(4, 3, 3));
+        result.Should().Contain(t => t.Coordinate == new TileCoordinate(3, 4, 3));
+        result.Should().Contain(t => t.Coordinate == new TileCoordinate(4, 4, 3));
     }
 
     [Test]

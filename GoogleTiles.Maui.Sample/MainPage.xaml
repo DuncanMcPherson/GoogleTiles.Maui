@@ -3,5 +3,5 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:gt="clr-namespace:GoogleTiles.Maui.Controls;assembly=GoogleTiles.Maui"
              x:Class="GoogleTiles.Maui.Sample.MainPage">
-    <gt:GoogleTilesView ZoomLevel="12"/>
+    <gt:GoogleTilesView ZoomLevel="12" Center="40.7608, -111.8910"/>
 </ContentPage>

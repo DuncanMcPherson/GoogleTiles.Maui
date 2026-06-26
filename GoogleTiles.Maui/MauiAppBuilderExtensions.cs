@@ -30,6 +30,7 @@ public static class MauiAppBuilderExtensions
         builder.Services.AddSingleton<SessionTokenCache>();
         builder.Services.AddSingleton<ISessionTokenProvider, SessionTokenProvider>();
         builder.Services.AddSingleton<TileFetcher>();
+        builder.Services.AddSingleton<ViewportMetadataFetcher>();
         builder.Services.AddHttpClient("GoogleTiles");
 
         builder.ConfigureMauiHandlers(handlers =>

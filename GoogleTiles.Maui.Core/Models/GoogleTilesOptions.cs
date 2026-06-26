@@ -10,6 +10,7 @@ public class GoogleTilesOptions
     public ImageFormat ImageFormat { get; set; } = ImageFormat.Png;
     public ScaleFactor Scale { get; set; } = ScaleFactor.ScaleFactor1x;
     public bool HighDpi { get; set; } = false;
+    public int MaxCachedTiles { get; set; } = 256;
 }
 
 public enum MapType { Roadmap, Satellite, Terrain, Streetview }

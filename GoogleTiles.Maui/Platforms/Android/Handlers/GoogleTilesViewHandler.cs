@@ -1,5 +1,6 @@
 ﻿using GoogleTiles.Maui.Controls;
 using GoogleTiles.Maui.Core.Abstractions;
+using GoogleTiles.Maui.Core.Models;
 using GoogleTiles.Maui.Core.Tiles;
 using SkiaSharp.Views.Android;
 
@@ -12,7 +13,11 @@ public partial class GoogleTilesViewHandler
         base.ConnectHandler(platformView);
         if (VirtualView is GoogleTilesView gtView)
         {
-            gtView.Initialize(Services!.GetRequiredService<TileFetcher>(), Services!.GetRequiredService<ISessionTokenProvider>());
+            gtView.Initialize(
+                Services!.GetRequiredService<TileFetcher>(),
+                Services!.GetRequiredService<ISessionTokenProvider>(),
+                Services!.GetRequiredService<GoogleTilesOptions>(),
+                Services!.GetRequiredService<ViewportMetadataFetcher>());
         }
     }
 

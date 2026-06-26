@@ -11,7 +11,7 @@ public static class MauiProgram
             .UseMauiApp<App>()
             .UseGoogleTiles(options =>
             {
-                options.ApiKey = "AIzaSyDoLfB5e9oi6_SizVPmlcEdZ71ZRXymgMk";
+                options.ApiKey = "AIzaSyDXXDWct7DRK1VBGnBZIgqodyqBsu7d1cg";
                 options.EnableCaching = true;
             })
             .ConfigureFonts(fonts =>
