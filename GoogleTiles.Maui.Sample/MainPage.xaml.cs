@@ -1,4 +1,7 @@
-﻿using GoogleTiles.Maui.Sample.ViewModels;
+﻿using GoogleTiles.Maui.Core.Models;
+using GoogleTiles.Maui.Layers;
+using GoogleTiles.Maui.Models;
+using GoogleTiles.Maui.Sample.ViewModels;
 
 namespace GoogleTiles.Maui.Sample;
 

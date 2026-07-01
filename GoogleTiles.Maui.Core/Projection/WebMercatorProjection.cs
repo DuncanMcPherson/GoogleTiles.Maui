@@ -13,7 +13,6 @@ internal static class WebMercatorProjection
         GeoCoordinate coordinate,
         GeoCoordinate center,
         int zoom,
-        double zoomScale,
         int canvasWidth,
         int canvasHeight)
     {
@@ -30,8 +29,8 @@ internal static class WebMercatorProjection
             Math.Tan(center.Latitude * Math.PI / 180.0) +
             1.0 / Math.Cos(center.Latitude * Math.PI / 180.0)) / Math.PI)) / 2.0 * worldSize;
 
-        var offsetX = (pixelX - centerPixelX) * zoomScale;
-        var offsetY = (pixelY - centerPixelY) * zoomScale;
+        var offsetX = (pixelX - centerPixelX);
+        var offsetY = (pixelY - centerPixelY);
 
         var canvasX = (float)(canvasWidth / 2.0 + offsetX);
         var canvasY = (float)(canvasHeight / 2.0 + offsetY);

@@ -26,6 +26,7 @@
     </PropertyGroup>
 
     <ItemGroup>
+      <None Remove="Resources\default_pin.png" />
       <None Remove="Resources\GoogleMaps_Logo_WithDarkOutline_1x.png" />
       <None Remove="Resources\GoogleMaps_Logo_WithDarkOutline_2x.png" />
       <None Remove="Resources\GoogleMaps_Logo_WithLightOutline_1x.png" />
@@ -33,6 +34,7 @@
     </ItemGroup>
 
     <ItemGroup>
+      <EmbeddedResource Include="Resources\default_pin.png" />
       <EmbeddedResource Include="Resources\googlemaps_logo_withdarkoutline_1x.png" />
       <EmbeddedResource Include="Resources\googlemaps_logo_withdarkoutline_2x.png" />
       <EmbeddedResource Include="Resources\googlemaps_logo_withlightoutline_1x.png" />

@@ -10,10 +10,11 @@
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
-        <gt:GoogleTilesView Grid.Row="0" ZoomLevel="12" Center="40.7608, -111.8910" MapType="{Binding MapType}" MapTheme="{Binding Theme}"/>
+        <gt:GoogleTilesView Grid.Row="0" ZoomLevel="12" Center="40.7608, -111.8910" MapType="{Binding MapType}" MapTheme="{Binding Theme}" x:Name="GTView"/>
         <StackLayout Grid.Row="1" Orientation="Horizontal" Spacing="5">
             <Button Text="Cycle Map Type" Command="{Binding CycleMapTypeCommand}"/>
-            <Button Text="Toggle theme" Command="{Binding ToggleNightMode}" IsEnabled="{Binding IsNightEnabled}"/>
+            <Button Text="Toggle Theme" Command="{Binding ToggleNightMode}" IsEnabled="{Binding IsNightEnabled}"/>
+            <Button Text="Add Test Pin" Command="{Binding AddTestPin}" CommandParameter="{Reference GTView}"/>
         </StackLayout>
     </Grid>
 </ContentPage>

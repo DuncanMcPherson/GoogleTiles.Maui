@@ -1,7 +1,10 @@
 ﻿using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Windows.Input;
+using GoogleTiles.Maui.Controls;
 using GoogleTiles.Maui.Core.Models;
+using GoogleTiles.Maui.Layers;
+using GoogleTiles.Maui.Models;
 
 namespace GoogleTiles.Maui.Sample.ViewModels;
 
@@ -29,9 +32,21 @@ public class MainViewModel : INotifyPropertyChanged
 
     public ICommand CycleMapTypeCommand { get; private set; }
     public ICommand ToggleNightMode { get; private set; }
+    public ICommand AddTestPin { get; private set; }
 
     public MainViewModel()
     {
+        AddTestPin = new Command((view) =>
+        {
+            if (view is not GoogleTilesView gtv) return;
+            if (gtv.Pins is null)
+            {
+                var layer = new PinLayer();
+                gtv.AddLayer(layer);
+            }
+
+            gtv.Pins!.Add(new Pin(new GeoCoordinate(40.7608, -111.8910), null, "Test SLC", true));
+        });
         CycleMapTypeCommand = new Command(() =>
         {
             switch (MapType)

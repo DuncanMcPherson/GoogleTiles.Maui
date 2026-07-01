@@ -90,6 +90,29 @@ public class GoogleTilesView : SKCanvasView
 
     private CancellationTokenSource _cts = new();
 
+    public PinLayer? Pins
+    {
+        get
+        {
+            return (PinLayer?)_layers.FirstOrDefault(l => l is PinLayer);
+        }
+    }
+
+    #endregion
+
+    #region Public Methods
+
+    public void AddLayer(MapLayer layer)
+    {
+        if (layer is IRequiresDependencyInjection injectable)
+            injectable.InjectDependencies(IPlatformApplication.Current!.Services);
+
+        layer.RepaintRequested += InvalidateSurface;
+        var attributionIndex = _layers.IndexOf(_attributionLayer);
+        _layers.Insert(attributionIndex, layer);
+        InvalidateSurface();
+    }
+
     #endregion
 
     #region Screen Updates
