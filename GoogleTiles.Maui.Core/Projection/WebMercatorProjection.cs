@@ -6,8 +6,38 @@ namespace GoogleTiles.Maui.Core.Projection;
 internal static class WebMercatorProjection
 {
     public const int TileSize = 256;
-    public const int MinZoom = 3;
+    public const int MinZoom = 0;
     public const int MaxZoom = 22;
+
+    public static TilePixelPosition ToCanvasPoint(
+        GeoCoordinate coordinate,
+        GeoCoordinate center,
+        int zoom,
+        double zoomScale,
+        int canvasWidth,
+        int canvasHeight)
+    {
+        ValidateZoom(zoom);
+        var worldSize = (1 << zoom) * TileSize;
+
+        var pixelX = (coordinate.Longitude + 180) / 360.0 * worldSize;
+        var pixelY =
+            (1.0 - Math.Log(Math.Tan(coordinate.Latitude * Math.PI / 180) +
+                             1.0 / Math.Cos(coordinate.Latitude * Math.PI / 180)) / Math.PI) / 2.0 * worldSize;
+
+        var centerPixelX = (center.Longitude + 180.0) / 360.0 * worldSize;
+        var centerPixelY = (1.0 - (Math.Log(
+            Math.Tan(center.Latitude * Math.PI / 180.0) +
+            1.0 / Math.Cos(center.Latitude * Math.PI / 180.0)) / Math.PI)) / 2.0 * worldSize;
+
+        var offsetX = (pixelX - centerPixelX) * zoomScale;
+        var offsetY = (pixelY - centerPixelY) * zoomScale;
+
+        var canvasX = (float)(canvasWidth / 2.0 + offsetX);
+        var canvasY = (float)(canvasHeight / 2.0 + offsetY);
+
+        return new TilePixelPosition(canvasX, canvasY);
+    }
 
     public static GeoCoordinate Translate(
         GeoCoordinate center,

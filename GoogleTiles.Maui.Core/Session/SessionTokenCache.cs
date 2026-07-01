@@ -21,4 +21,9 @@ internal class SessionTokenCache
     {
         _current = token;
     }
+
+    public void Clear()
+    {
+        _current = null;
+    }
 }

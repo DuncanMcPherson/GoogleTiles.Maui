@@ -1,6 +1,7 @@
 ﻿using GoogleTiles.Maui.Controls;
 using GoogleTiles.Maui.Core.Abstractions;
 using GoogleTiles.Maui.Core.Models;
+using GoogleTiles.Maui.Core.Session;
 using GoogleTiles.Maui.Core.Tiles;
 using SkiaSharp.Views.iOS;
 
@@ -16,6 +17,7 @@ public partial class GoogleTilesViewHandler
             gtView.Initialize(
                 Services!.GetRequiredService<TileFetcher>(),
                 Services!.GetRequiredService<ISessionTokenProvider>(),
+                Services!.GetRequiredService<SessionTokenCache>(),
                 Services!.GetRequiredService<GoogleTilesOptions>(),
                 Services!.GetRequiredService<ViewportMetadataFetcher>());
         }
@@ -28,15 +30,5 @@ public partial class GoogleTilesViewHandler
             gtView.Cleanup();
         }
         base.DisconnectHandler(platformView);
-    }
-
-    static partial void MapCenter(GoogleTilesViewHandler handler, GoogleTilesView view)
-    {
-        handler.PlatformView.SetNeedsDisplay();
-    }
-
-    static partial void MapZoomLevel(GoogleTilesViewHandler handler, GoogleTilesView view)
-    {
-        handler.PlatformView.SetNeedsDisplay();
     }
 }

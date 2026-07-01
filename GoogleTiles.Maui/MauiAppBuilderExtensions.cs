@@ -5,6 +5,7 @@ using GoogleTiles.Maui.Core.Models;
 using GoogleTiles.Maui.Core.Session;
 using GoogleTiles.Maui.Core.Tiles;
 using GoogleTiles.Maui.Handlers;
+using GoogleTiles.Maui.Resolvers;
 using SkiaSharp.Views.Maui.Controls.Hosting;
 
 namespace GoogleTiles.Maui;
@@ -17,7 +18,6 @@ public static class MauiAppBuilderExtensions
         this MauiAppBuilder builder,
         Action<GoogleTilesOptions> configure)
     {
-        // TODO: add skia sharp
         builder.UseSkiaSharp();
 
         var options = new GoogleTilesOptions();
@@ -31,6 +31,7 @@ public static class MauiAppBuilderExtensions
         builder.Services.AddSingleton<ISessionTokenProvider, SessionTokenProvider>();
         builder.Services.AddSingleton<TileFetcher>();
         builder.Services.AddSingleton<ViewportMetadataFetcher>();
+        builder.Services.AddSingleton<PinImageResolver>();
         builder.Services.AddHttpClient("GoogleTiles");
 
         builder.ConfigureMauiHandlers(handlers =>
@@ -47,5 +48,7 @@ public static class MauiAppBuilderExtensions
             throw new InvalidOperationException(
                 "A Google Maps API key must be provided via options.ApiKey. " +
                 "See https://developers.google.com/maps/documentation/tile/get-api-key for details.");
+        if (options.MapType != MapType.Roadmap && options.Theme != MapTheme.Day)
+            throw new InvalidOperationException("Theme cannot be Night or Custom when Map Type is not Roadmap");
     }
 }
