@@ -44,6 +44,12 @@ public class GoogleTilesView : SKCanvasView
         MapTheme.Day,
         propertyChanged: OnMapThemeChanged);
 
+    public static readonly BindableProperty MapRotationProperty = BindableProperty.Create(
+        nameof(Rotation),
+        typeof(double),
+        typeof(GoogleTilesView),
+        0.0d);
+
     public GeoCoordinate Center
     {
         get => (GeoCoordinate)GetValue(CenterProperty);
@@ -70,6 +76,12 @@ public class GoogleTilesView : SKCanvasView
     {
         get => (MapTheme)GetValue(MapThemeProperty);
         set => SetValue(MapThemeProperty, value);
+    }
+
+    public new double Rotation
+    {
+        get => (double)GetValue(MapRotationProperty);
+        set => SetValue(MapRotationProperty, value);
     }
 
     #endregion
