@@ -210,8 +210,10 @@ public class GoogleTilesView : SKGLView
 
     internal void Initialize(TileFetcher tileFetcher, ISessionTokenProvider sessionTokenProvider,
         SessionTokenCache cache,
-        GoogleTilesOptions options, ViewportMetadataFetcher metadataFetcher, RotationGestureHandler rotationHandler)
+        GoogleTilesOptions options, ViewportMetadataFetcher metadataFetcher,
+        RotationGestureHandler rotationHandler)
     {
+
         _tileFetcher = tileFetcher;
         _options = options;
         _rotationHandler = rotationHandler;
@@ -249,10 +251,11 @@ public class GoogleTilesView : SKGLView
 
     private void InitializeGestures()
     {
+        if (DeviceInfo.Platform == DevicePlatform.WinUI)
+            return;
         var panGesture = new PanGestureRecognizer();
         panGesture.PanUpdated += OnPanUpdated;
         GestureRecognizers.Add(panGesture);
-
         var pinchGesture = new PinchGestureRecognizer();
         pinchGesture.PinchUpdated += OnPinchUpdated;
         GestureRecognizers.Add(pinchGesture);
@@ -276,17 +279,11 @@ public class GoogleTilesView : SKGLView
             case GestureStatus.Started:
                 _lastPanPosition = new PointF((float)e.TotalX, (float)e.TotalY); break;
             case GestureStatus.Running:
-                var radians = -MapRotation * Math.PI / 180.0;
                 var deltaX = (float)e.TotalX - _lastPanPosition.X;
                 var deltaY = (float)e.TotalY - _lastPanPosition.Y;
                 _lastPanPosition = new PointF((float)e.TotalX, (float)e.TotalY);
-                var rotatedDeltaX = deltaX * Math.Cos(radians) - deltaY * Math.Sin(radians);
-                var rotatedDeltaY = deltaX * Math.Sin(radians) + deltaY * Math.Cos(radians);
 
-                Center = WebMercatorProjection.Translate(Center, (float)rotatedDeltaX, (float)rotatedDeltaY, ZoomLevel);
-                Center = WebMercatorProjection.ClampToBounds(Center, ZoomLevel, _zoomScale, _canvasSize.Width,
-                    _canvasSize.Height);
-                InvalidateSurface();
+                ApplyPanDelta(deltaX, deltaY);
                 break;
             case GestureStatus.Completed:
             case GestureStatus.Canceled:
@@ -372,6 +369,11 @@ public class GoogleTilesView : SKGLView
         InvalidateSurface();
     }
 
+    internal void OnPan(float x, float y)
+    {
+        ApplyPanDelta(x, y);
+    }
+
     #endregion
 
     #region Helpers
@@ -396,6 +398,18 @@ public class GoogleTilesView : SKGLView
         var minScaleY = _canvasSize.Height / (double)worldPixels;
         var minScaleX = _canvasSize.Width / (double)worldPixels;
         return Math.Max(minScaleX, minScaleY);
+    }
+
+    private void ApplyPanDelta(float deltaX, float deltaY)
+    {
+        var radians = -MapRotation * Math.PI / 180.0;
+        var rotatedDeltaX = deltaX * Math.Cos(radians) - deltaY * Math.Sin(radians);
+        var rotatedDeltaY = deltaX * Math.Sin(radians) + deltaY * Math.Cos(radians);
+
+        Center = WebMercatorProjection.Translate(Center, (float)rotatedDeltaX, (float)rotatedDeltaY, ZoomLevel);
+        Center = WebMercatorProjection.ClampToBounds(Center, ZoomLevel, _zoomScale, _canvasSize.Width,
+            _canvasSize.Height);
+        InvalidateSurface();
     }
 
     #endregion

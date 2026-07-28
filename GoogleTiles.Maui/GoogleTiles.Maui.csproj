@@ -53,10 +53,4 @@
       <ProjectReference Include="..\GoogleTiles.Maui.Core\GoogleTiles.Maui.Core.csproj" />
     </ItemGroup>
 
-    <ItemGroup>
-      <Folder Include="Platforms\iOS\Gestures\" />
-      <Folder Include="Platforms\MacCatalyst\Gestures\" />
-      <Folder Include="Platforms\Windows\Gestures\" />
-    </ItemGroup>
-
 </Project>
