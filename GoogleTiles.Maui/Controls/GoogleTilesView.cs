@@ -1,11 +1,11 @@
-﻿using System.Collections.Concurrent;
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using GoogleTiles.Maui.Abstractions;
 using GoogleTiles.Maui.Core.Abstractions;
 using GoogleTiles.Maui.Core.Models;
 using GoogleTiles.Maui.Core.Projection;
 using GoogleTiles.Maui.Core.Session;
 using GoogleTiles.Maui.Core.Tiles;
+using GoogleTiles.Maui.Gestures;
 using GoogleTiles.Maui.Layers;
 using GoogleTiles.Maui.Models;
 using SkiaSharp;
@@ -14,7 +14,7 @@ using SkiaSharp.Views.Maui.Controls;
 
 namespace GoogleTiles.Maui.Controls;
 
-public class GoogleTilesView : SKCanvasView
+public class GoogleTilesView : SKGLView
 {
     #region Bindable Properties
 
@@ -45,15 +45,20 @@ public class GoogleTilesView : SKCanvasView
         propertyChanged: OnMapThemeChanged);
 
     public static readonly BindableProperty MapRotationProperty = BindableProperty.Create(
-        nameof(Rotation),
-        typeof(double),
+        nameof(MapRotation),
+        typeof(float),
         typeof(GoogleTilesView),
-        0.0d);
+        0f,
+        propertyChanged: OnMapRotationChanged);
 
     public GeoCoordinate Center
     {
         get => (GeoCoordinate)GetValue(CenterProperty);
-        set => SetValue(CenterProperty, value);
+        set
+        {
+            Debug.WriteLine($"Center point updated: ({value.Longitude}, {Center.Latitude})");
+            SetValue(CenterProperty, value);
+        }
     }
 
     public int ZoomLevel
@@ -78,9 +83,9 @@ public class GoogleTilesView : SKCanvasView
         set => SetValue(MapThemeProperty, value);
     }
 
-    public new double Rotation
+    public float MapRotation
     {
-        get => (double)GetValue(MapRotationProperty);
+        get => (float)GetValue(MapRotationProperty);
         set => SetValue(MapRotationProperty, value);
     }
 
@@ -89,16 +94,18 @@ public class GoogleTilesView : SKCanvasView
     #region State
 
     private SKSizeI _canvasSize;
-    private TileFetcher _tileFetcher;
-    private GoogleTilesOptions _options;
+    private TileFetcher? _tileFetcher;
+    private GoogleTilesOptions? _options;
+    private RotationGestureHandler? _rotationHandler;
     private PointF _lastPanPosition;
     private double _accumulatedScale = 1.0;
     private double _zoomScale = 1.0;
     private int _baseZoomLevel;
+    private float _deltaRotation = 0f;
 
     private readonly List<IMapLayer> _layers = [];
-    private TileLayer _tileLayer;
-    private AttributionLayer _attributionLayer;
+    private TileLayer? _tileLayer;
+    private AttributionLayer? _attributionLayer;
 
     private CancellationTokenSource _cts = new();
 
@@ -116,6 +123,8 @@ public class GoogleTilesView : SKCanvasView
 
     public void AddLayer(MapLayer layer)
     {
+        if (_attributionLayer is null)
+            return;
         if (layer is IRequiresDependencyInjection injectable)
             injectable.InjectDependencies(IPlatformApplication.Current!.Services);
 
@@ -129,7 +138,7 @@ public class GoogleTilesView : SKCanvasView
 
     #region Screen Updates
 
-    protected override void OnPaintSurface(SKPaintSurfaceEventArgs e)
+    protected override void OnPaintSurface(SKPaintGLSurfaceEventArgs e)
     {
         base.OnPaintSurface(e);
 
@@ -140,21 +149,42 @@ public class GoogleTilesView : SKCanvasView
 
         _canvasSize = e.Info.Size;
 
+        var matrix = canvas.TotalMatrix;
+
         var context = new LayerDrawContext(
             Center,
             ZoomLevel,
             _zoomScale,
-            _canvasSize);
-        if (_zoomScale != 1.0)
-        {
+            _canvasSize,
+            matrix,
+            MapRotation);
+
+        var needsTransform = Math.Abs(_zoomScale - 1.0) > 0.0001 || MapRotation != 0f;
+        if (needsTransform)
             canvas.Save();
-            canvas.Scale((float)_zoomScale, (float)_zoomScale);
+
+        if (MapRotation != 0f || Math.Abs(_zoomScale - 1.0) > 0.0001)
+        {
+            Debug.WriteLine($"Canvas Size from e.Info: {e.Info.Width}x{e.Info.Height}");
+            Debug.WriteLine($"_canvasSize: {_canvasSize.Width}x{_canvasSize.Height}");
+            
+            // canvas.Save();
+            var cx = _canvasSize.Width / 2f;
+            var cy = _canvasSize.Height / 2f;
+            Debug.WriteLine($"Translating to: ({cx}, {cy})");
+            canvas.Translate(cx, cy);
+            canvas.RotateDegrees(MapRotation);
+            canvas.Scale((float)_zoomScale);
+            canvas.Translate(-cx, -cy);
+            Debug.WriteLine($"Canvas Size from e.Info: {e.Info.Width}x{e.Info.Height}");
+            Debug.WriteLine($"_canvasSize: {_canvasSize.Width}x{_canvasSize.Height}");
+            // canvas.Restore();
         }
 
         foreach (var layer in _layers.Where(l => l.IsVisible))
         {
-            if (_zoomScale != 1.0 && layer is AttributionLayer)
-                canvas.Restore();
+            if (layer is AttributionLayer)
+                continue;
             if (layer.Opacity < 1.0f)
             {
                 canvas.SaveLayer(new SKPaint { Color = SKColors.White.WithAlpha((byte)(layer.Opacity * 255)) });
@@ -166,6 +196,12 @@ public class GoogleTilesView : SKCanvasView
                 layer.Draw(canvas, e.Info, context);
             }
         }
+
+        if (needsTransform)
+            canvas.Restore();
+        // var pins = _layers.FirstOrDefault(l => l is PinLayer);
+        // pins?.Draw(canvas, e.Info, context);
+        (_attributionLayer as IMapLayer).Draw(canvas, e.Info, context);
     }
 
     #endregion
@@ -174,10 +210,13 @@ public class GoogleTilesView : SKCanvasView
 
     internal void Initialize(TileFetcher tileFetcher, ISessionTokenProvider sessionTokenProvider,
         SessionTokenCache cache,
-        GoogleTilesOptions options, ViewportMetadataFetcher metadataFetcher)
+        GoogleTilesOptions options, ViewportMetadataFetcher metadataFetcher, RotationGestureHandler rotationHandler)
     {
         _tileFetcher = tileFetcher;
         _options = options;
+        _rotationHandler = rotationHandler;
+        if (_rotationHandler != null)
+            _rotationHandler.RotationReset += ResetRotation;
         var logoBytes = LoadEmbeddedResource("GoogleTiles.Maui.Resources.googlemaps_logo_withdarkoutline_1x.png");
         _tileLayer = new TileLayer("tile-layer", tileFetcher, cache, options);
         _tileLayer.RepaintRequested += InvalidateSurface;
@@ -200,6 +239,12 @@ public class GoogleTilesView : SKCanvasView
         {
             layer.Dispose();
         }
+
+        if (_rotationHandler is not null)
+        {
+            _rotationHandler.RotationReset -= ResetRotation;
+            _rotationHandler = null;
+        }
     }
 
     private void InitializeGestures()
@@ -217,18 +262,28 @@ public class GoogleTilesView : SKCanvasView
 
     #region Update Handlers
 
+    private void ResetRotation()
+    {
+        _deltaRotation = 0f;
+    }
+
     private void OnPanUpdated(object? sender, PanUpdatedEventArgs e)
     {
+        if (_rotationHandler?.IsTwoFingerGesture ?? false)
+            return;
         switch (e.StatusType)
         {
             case GestureStatus.Started:
                 _lastPanPosition = new PointF((float)e.TotalX, (float)e.TotalY); break;
             case GestureStatus.Running:
+                var radians = -MapRotation * Math.PI / 180.0;
                 var deltaX = (float)e.TotalX - _lastPanPosition.X;
                 var deltaY = (float)e.TotalY - _lastPanPosition.Y;
                 _lastPanPosition = new PointF((float)e.TotalX, (float)e.TotalY);
+                var rotatedDeltaX = deltaX * Math.Cos(radians) - deltaY * Math.Sin(radians);
+                var rotatedDeltaY = deltaX * Math.Sin(radians) + deltaY * Math.Cos(radians);
 
-                Center = WebMercatorProjection.Translate(Center, deltaX, deltaY, ZoomLevel);
+                Center = WebMercatorProjection.Translate(Center, (float)rotatedDeltaX, (float)rotatedDeltaY, ZoomLevel);
                 Center = WebMercatorProjection.ClampToBounds(Center, ZoomLevel, _zoomScale, _canvasSize.Width,
                     _canvasSize.Height);
                 InvalidateSurface();
@@ -243,6 +298,8 @@ public class GoogleTilesView : SKCanvasView
 
     private void OnPinchUpdated(object? sender, PinchGestureUpdatedEventArgs e)
     {
+        if (_deltaRotation > 10f)
+            return;
         switch (e.Status)
         {
             case GestureStatus.Running:
@@ -263,7 +320,7 @@ public class GoogleTilesView : SKCanvasView
         if (bindable is not GoogleTilesView view) return;
         if ((MapType)oldValue == (MapType)newValue) return;
 
-        view._tileLayer.BeginTransition((MapType)newValue, view.InvalidateSurface);
+        view._tileLayer?.BeginTransition((MapType)newValue, view.InvalidateSurface);
     }
 
     private static void OnMapThemeChanged(BindableObject bindable, object oldValue, object newValue)
@@ -274,7 +331,16 @@ public class GoogleTilesView : SKCanvasView
         if (view.MapType != MapType.Roadmap && newTheme != MapTheme.Day)
             // Op not allowed, skipping
             return;
-        view._tileLayer.BeginTransition(newTheme, view.InvalidateSurface);
+        view._tileLayer?.BeginTransition(newTheme, view.InvalidateSurface);
+    }
+
+    private static void OnMapRotationChanged(BindableObject bindable, object oldValue, object newValue)
+    {
+        if (bindable is GoogleTilesView view)
+        {
+            view.InvalidateSurface();
+            view._deltaRotation += Math.Abs((float)newValue);
+        }
     }
 
     internal void OnScrollZoom(float delta)

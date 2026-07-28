@@ -1,4 +1,5 @@
 ﻿using GoogleTiles.Maui.Core.Models;
+using ImageFormat = GoogleTiles.Maui.Core.Models.ImageFormat;
 
 namespace GoogleTiles.Maui.Core.Extensions;
 

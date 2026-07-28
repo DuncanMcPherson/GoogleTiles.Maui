@@ -9,7 +9,7 @@ namespace GoogleTiles.Maui.Handlers;
 
 public partial class GoogleTilesViewHandler
 {
-    protected override void ConnectHandler(SKCanvasView platformView)
+    protected override void ConnectHandler(SKGLView platformView)
     {
         base.ConnectHandler(platformView);
         if (VirtualView is GoogleTilesView gtView)
@@ -19,11 +19,12 @@ public partial class GoogleTilesViewHandler
                 Services!.GetRequiredService<ISessionTokenProvider>(),
                 Services!.GetRequiredService<SessionTokenCache>(),
                 Services!.GetRequiredService<GoogleTilesOptions>(),
-                Services!.GetRequiredService<ViewportMetadataFetcher>());
+                Services!.GetRequiredService<ViewportMetadataFetcher>(),
+                _rotationGestureHandler);
         }
     }
 
-    protected override void DisconnectHandler(SKCanvasView platformView)
+    protected override void DisconnectHandler(SKGLView platformView)
     {
         if (VirtualView is GoogleTilesView gtView)
         {

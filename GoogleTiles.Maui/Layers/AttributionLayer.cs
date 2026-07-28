@@ -39,7 +39,7 @@ internal class AttributionLayer : MapLayer
         _lastZoom = context.ZoomLevel;
 
         var visibleTiles = ViewportCalculator.GetVisibleTiles(context.Center, context.ZoomLevel,
-            context.CanvasSize.Width, context.CanvasSize.Height);
+            context.CanvasSize.Width, context.CanvasSize.Height, context.RotationDegrees);
 
         var (north, south, east, west) = WebMercatorProjection.GetViewportBounds(visibleTiles);
 

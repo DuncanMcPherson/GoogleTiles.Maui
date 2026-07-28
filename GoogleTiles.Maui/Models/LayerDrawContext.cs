@@ -7,4 +7,6 @@ public record LayerDrawContext(
     GeoCoordinate Center,
     int ZoomLevel,
     double ZoomScale,
-    SKSizeI CanvasSize);
+    SKSizeI CanvasSize,
+    SKMatrix matrix,
+    float RotationDegrees = 0f);

@@ -13,6 +13,7 @@ internal static class WebMercatorProjection
         GeoCoordinate coordinate,
         GeoCoordinate center,
         int zoom,
+        float rotationDegrees,
         int canvasWidth,
         int canvasHeight)
     {

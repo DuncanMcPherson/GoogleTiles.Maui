@@ -67,10 +67,12 @@ public class PinLayer : MapLayer, IEnumerable<Pin>, IRequiresDependencyInjection
             var position = WebMercatorProjection.ToCanvasPoint(pin.Location,
                 context.Center,
                 context.ZoomLevel,
+                context.RotationDegrees,
                 context.CanvasSize.Width,
                 context.CanvasSize.Height);
 
             Debug.WriteLine($"Pin Position: ({position.X}, {position.Y}) | Center: ({context.Center})");
+            Debug.WriteLine($"Canvas: Size: {context.CanvasSize.Width}x{context.CanvasSize.Height}, Zoom Level: {context.ZoomLevel}, Zoom Scale: {context.ZoomScale}, Rotation: {context.RotationDegrees} degrees");
 
             if (position.X < 0 || position.X > info.Width ||
                 position.Y < 0 || position.Y > info.Height)
@@ -80,27 +82,31 @@ public class PinLayer : MapLayer, IEnumerable<Pin>, IRequiresDependencyInjection
             // Image hasn't been loaded yet
             if (bitmap is null)
                 continue;
-            DrawPin(canvas, bitmap, position, pin);
+            DrawPin(canvas, bitmap, position, pin, context.matrix, context.RotationDegrees);
 
             if (pin is { ShowLabel: true, Label: not null })
                 DrawLabel(canvas, pin.Label, position);
         }
     }
 
-    private void DrawPin(SKCanvas canvas, SKBitmap bitmap, TilePixelPosition position, Pin pin)
+    private void DrawPin(SKCanvas canvas, SKBitmap bitmap, TilePixelPosition position, Pin pin, SKMatrix matrix, float canvasRotation)
     {
-        canvas.Save();
+        // canvas.Save();
 
         var anchorX = position.X;
         var anchorY = position.Y;
+        var point = matrix.MapPoint(anchorX, anchorY);
+        anchorX = point.X;
+        anchorY = point.Y;
+        Debug.WriteLine($"Anchor position: ({anchorX}, {anchorY})");
 
         canvas.Translate(anchorX, anchorY);
-        canvas.RotateDegrees(pin.Rotation);
+        canvas.RotateDegrees(pin.Rotation + -canvasRotation);
         canvas.Scale(pin.Scale);
+        canvas.DrawBitmap(bitmap, new SKPoint(-bitmap.Width / 2f, -bitmap.Height), new SKSamplingOptions(SKFilterMode.Linear));
+        canvas.Translate(-anchorX, -anchorY);
 
-        canvas.DrawBitmap(bitmap, new SKPoint(-bitmap.Width / 2f, -bitmap.Height));
-
-        canvas.Restore();
+        // canvas.Restore();
     }
 
     private void DrawLabel(

@@ -40,16 +40,8 @@ internal class TileLayer : MapLayer
             context.Center,
             context.ZoomLevel,
             context.CanvasSize.Width,
-            context.CanvasSize.Height);
-
-        // if (context.ZoomScale != 1.0)
-        // {
-        //     canvas.Save();
-        //     canvas.Scale((float)context.ZoomScale,
-        //         (float)context.ZoomScale,
-        //         context.CanvasSize.Width / 2f,
-        //         context.CanvasSize.Height / 2f);
-        // }
+            context.CanvasSize.Height,
+            context.RotationDegrees);
 
         using var paint = _isTransitioning
             ? new SKPaint { Color = SKColors.White.WithAlpha((byte)(_transitionAlpha * 255)) }
@@ -65,7 +57,8 @@ internal class TileLayer : MapLayer
                 // Cache entry has expired per Google's Cache-Control header, refresh
                 if (cachedTile.IsExpired)
                 {
-                    _tileCache.TryRemove(viewportTile.Coordinate, out _);
+                    _tileCache.TryRemove(viewportTile.Coordinate, out var tile);
+                    tile?.Bitmap.Dispose();
                     QueueTileFetch(viewportTile.Coordinate, context);
                     continue;
                 }

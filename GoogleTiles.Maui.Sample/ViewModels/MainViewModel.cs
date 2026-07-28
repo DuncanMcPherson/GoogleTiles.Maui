@@ -28,14 +28,45 @@ public class MainViewModel : INotifyPropertyChanged
         set => SetField(ref _theme, value);
     }
 
+    private int _rotation;
+
+    public int Rotation
+    {
+        get => _rotation;
+        set => SetField(ref _rotation, value);
+    }
+
     public bool IsNightEnabled => MapType == MapType.Roadmap;
 
     public ICommand CycleMapTypeCommand { get; private set; }
     public ICommand ToggleNightMode { get; private set; }
     public ICommand AddTestPin { get; private set; }
+    public ICommand IncreaseRotation { get; private set; }
+    public ICommand SetRotation { get; private set; }
 
     public MainViewModel()
     {
+        SetRotation = new Command((rotation) =>
+        {
+            if (rotation is not Entry control)
+                return;
+            if (!int.TryParse(control.Text, out var rotate))
+            {
+                return;
+            }
+
+            if (rotate > 180)
+                rotate -= 360;
+            Rotation = rotate;
+        });
+        IncreaseRotation = new Command(() =>
+        {
+            Rotation++;
+            if (Rotation > 180)
+            {
+                Rotation -= 360;
+            }
+        });
         AddTestPin = new Command((view) =>
         {
             if (view is not GoogleTilesView gtv) return;
