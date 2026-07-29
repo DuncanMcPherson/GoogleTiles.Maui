@@ -109,11 +109,29 @@ public class GoogleTilesView : SKGLView
 
     private CancellationTokenSource _cts = new();
 
-    public PinLayer? Pins
+    public PinLayer Pins
     {
         get
         {
-            return (PinLayer?)_layers.FirstOrDefault(l => l is PinLayer);
+            var layer = _layers.OfType<PinLayer>().FirstOrDefault();
+            if (layer is not null) return layer;
+            layer = new PinLayer();
+            AddLayer(layer);
+
+            return layer;
+        }
+    }
+
+    public PolylineLayer Polylines
+    {
+        get
+        {
+            var layer = _layers.OfType<PolylineLayer>().FirstOrDefault();
+            if (layer is not null) return layer;
+            layer = new PolylineLayer();
+            AddLayer(layer);
+
+            return layer;
         }
     }
 

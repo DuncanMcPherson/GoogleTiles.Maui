@@ -19,7 +19,8 @@
             <Label Text="Current Rotation: "/>
             <Label Text="{Binding Rotation}"/>
             <Entry x:Name="RotationEntry" Text="{Binding Rotation, Mode=TwoWay}"/>
-            <Button Text="Set Rotation" Command="{Binding SetRotation}" CommandParameter="{Reference RotationEntry}"></Button>
+            <Button Text="Add Test Path" Command="{Binding AddTestPolyline}" CommandParameter="{Reference GTView}"/>
+            <Button Text="Add Incremental Path" Command="{Binding AddTestPathIncremental}" CommandParameter="{Reference GTView}"/>
         </StackLayout>
     </Grid>
 </ContentPage>
