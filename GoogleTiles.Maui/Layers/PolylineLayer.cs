@@ -65,10 +65,9 @@ public class PolylineLayer : MapLayer, IEnumerable<Polyline>
                 polyline.Positions[i],
                 context.Center,
                 context.ZoomLevel,
-                context.RotationDegrees,
                 context.CanvasSize.Width,
                 context.CanvasSize.Height);
-            var point = context.matrix.MapPoint(position.X, position.Y);
+            var point = context.Matrix.MapPoint(position.X, position.Y);
             minX = Math.Min(minX, point.X);
             minY = Math.Min(minY, point.Y);
             maxX = Math.Max(maxX, point.X);

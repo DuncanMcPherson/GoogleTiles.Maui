@@ -7,7 +7,10 @@ internal partial class RotationGestureHandler
 {
     internal void Attach(SKSwapChainPanel view)
     {
-        view.ManipulationMode = ManipulationModes.Rotate;
+        if (view.ManipulationMode is ManipulationModes.None or ManipulationModes.System or ManipulationModes.All)
+            view.ManipulationMode = ManipulationModes.Rotate;
+        else
+            view.ManipulationMode |= ManipulationModes.Rotate;
 
         view.ManipulationStarted += OnManipulationStarted;
         view.ManipulationDelta += OnManipulationDelta;

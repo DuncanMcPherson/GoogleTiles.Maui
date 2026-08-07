@@ -55,7 +55,6 @@ internal static class ViewportCalculator
         var centerTile = WebMercatorProjection.FromLatLng(center.Latitude, center.Longitude, zoom);
 
         // Offset inside the center tile
-        var centerOffsetX = (int)(centerPixelX % tileSize);
         var centerOffsetY = (int)(centerPixelY % tileSize);
 
         // ------------------------------------------------------------

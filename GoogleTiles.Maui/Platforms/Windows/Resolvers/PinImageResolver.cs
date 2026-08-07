@@ -1,4 +1,5 @@
 ﻿using System.Diagnostics;
+using Windows.Storage;
 using SkiaSharp;
 
 namespace GoogleTiles.Maui.Resolvers;
@@ -18,8 +19,11 @@ internal partial class PinImageResolver
 
             if (source is FileImageSource fileSource)
             {
-                var bytes = await File.ReadAllBytesAsync(fileSource.File, ct);
-                return SKBitmap.Decode(bytes);
+                if (File.Exists(fileSource.File))
+                {
+                    var bytes = await File.ReadAllBytesAsync(fileSource.File, ct);
+                    return SKBitmap.Decode(bytes);
+                }
             }
 
             if (source is StreamImageSource streamSource)
@@ -33,17 +37,19 @@ internal partial class PinImageResolver
             var service = _serviceProvider.GetImageSourceService(source);
             if (service is null)
                 return null;
-
-            var result = await service.GetImageSourceAsync(source, cancellationToken: ct);
-            if (result?.Value is Microsoft.UI.Xaml.Media.Imaging.BitmapImage { UriSource: not null } bitmapImage)
+            StorageFile? file = null;
+            await MainThread.InvokeOnMainThreadAsync(async () =>
             {
-                var file = await Windows.Storage.StorageFile
-                    .GetFileFromApplicationUriAsync(bitmapImage.UriSource);
-                await using var stream = await file.OpenStreamForReadAsync();
-                return SKBitmap.Decode(stream);
-            }
-
-            return null;
+                var result = await service.GetImageSourceAsync(source, cancellationToken: ct);
+                if (result?.Value is Microsoft.UI.Xaml.Media.Imaging.BitmapImage { UriSource: not null } bitmapImage)
+                {
+                    file = await StorageFile.GetFileFromApplicationUriAsync(bitmapImage.UriSource);
+                }
+            });
+            if (file is null) return null;
+            await using var fileStream = await file.OpenStreamForReadAsync();
+            return SKBitmap.Decode(fileStream);
+            
         }
         catch (Exception ex)
         {

@@ -13,7 +13,7 @@ namespace GoogleTiles.Maui.Layers;
 public class PinLayer : MapLayer, IEnumerable<Pin>, IRequiresDependencyInjection
 {
     private readonly List<Pin> _pins = [];
-    private readonly ConcurrentDictionary<Pin, SKBitmap?> _imageCache = new();
+    private readonly ConcurrentDictionary<string, SKBitmap?> _imageCache = new();
     private readonly object _pendingLock = new();
     private readonly HashSet<Pin> _pendingResolutions = new();
     private PinImageResolver? _resolver;
@@ -35,10 +35,11 @@ public class PinLayer : MapLayer, IEnumerable<Pin>, IRequiresDependencyInjection
         RequestRepaint();
     }
 
-    public void Remove(Pin pin)
+    public void Remove(Pin pin, bool keepCache = false)
     {
         _pins.Remove(pin);
-        _imageCache.TryRemove(pin, out _);
+        if (!keepCache)
+            _imageCache.TryRemove(GetKey(pin), out _);
         RequestRepaint();
     }
 
@@ -67,7 +68,6 @@ public class PinLayer : MapLayer, IEnumerable<Pin>, IRequiresDependencyInjection
             var position = WebMercatorProjection.ToCanvasPoint(pin.Location,
                 context.Center,
                 context.ZoomLevel,
-                context.RotationDegrees,
                 context.CanvasSize.Width,
                 context.CanvasSize.Height);
 
@@ -82,7 +82,7 @@ public class PinLayer : MapLayer, IEnumerable<Pin>, IRequiresDependencyInjection
             // Image hasn't been loaded yet
             if (bitmap is null)
                 continue;
-            DrawPin(canvas, bitmap, position, pin, context.matrix, context.RotationDegrees);
+            DrawPin(canvas, bitmap, position, pin, context.Matrix, context.RotationDegrees);
 
             if (pin is { ShowLabel: true, Label: not null })
                 DrawLabel(canvas, pin.Label, position);
@@ -146,10 +146,10 @@ public class PinLayer : MapLayer, IEnumerable<Pin>, IRequiresDependencyInjection
         if (pin.ImageSource is null)
             return _defaultPin;
 
-        if (_imageCache.TryGetValue(pin, out var cached))
+        if (_imageCache.TryGetValue(GetKey(pin), out var cached))
             return cached;
 
-        _imageCache[pin] = null;
+        _imageCache[GetKey(pin)] = null;
         QueueResolution(pin);
         return _defaultPin;
     }
@@ -167,11 +167,11 @@ public class PinLayer : MapLayer, IEnumerable<Pin>, IRequiresDependencyInjection
             try
             {
                 var bitmap = await _resolver!.ResolveAsync(pin.ImageSource);
-                _imageCache[pin] = bitmap;
+                _imageCache[GetKey(pin)] = bitmap;
             }
             catch (Exception ex)
             {
-                _imageCache.TryRemove(pin, out _);
+                _imageCache.TryRemove(GetKey(pin), out _);
                 Debug.WriteLine($"Pin image resolution failed: {ex.Message}");
             }
             finally
@@ -188,5 +188,17 @@ public class PinLayer : MapLayer, IEnumerable<Pin>, IRequiresDependencyInjection
         var assembly = typeof(PinLayer).Assembly;
         using var stream = assembly.GetManifestResourceStream("GoogleTiles.Maui.Resources.default_pin.png");
         return stream is null ? null : SKBitmap.Decode(stream);
+    }
+
+    private static string GetKey(Pin pin)
+    {
+        var source = pin.ImageSource;
+        if (source is null) return pin.Location.ToString();
+        return source switch
+        {
+            FileImageSource fileSource => fileSource.File,
+            UriImageSource uriSource => uriSource.Uri.ToString(),
+            _ => pin.Location.ToString()
+        };
     }
 }

@@ -8,5 +8,6 @@ public record LayerDrawContext(
     int ZoomLevel,
     double ZoomScale,
     SKSizeI CanvasSize,
-    SKMatrix matrix,
+    SKMatrix Matrix,
+    bool TrackUserLocation,
     float RotationDegrees = 0f);

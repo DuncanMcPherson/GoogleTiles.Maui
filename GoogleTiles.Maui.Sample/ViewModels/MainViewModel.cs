@@ -44,9 +44,26 @@ public class MainViewModel : INotifyPropertyChanged
     public ICommand SetRotation { get; private set; }
     public ICommand AddTestPolyline { get; private set; }
     public ICommand AddTestPathIncremental { get; private set; }
+    public ICommand AddTestCircle { get; set; }
+    public ICommand AddPolygon { get; set; }
+    public ICommand AnimateCamera { get; set; }
+    public ICommand ResetTracking { get; set; }
 
     public MainViewModel()
     {
+        AnimateCamera = new Command((view) =>
+        {
+            if (view is not GoogleTilesView gtv) return;
+
+            var newCenter = new GeoCoordinate(gtv.Center.Latitude + 0.005, gtv.Center.Longitude + 0.001);
+            gtv.AnimateCameraAsync(newCenter, gtv.MapRotation, easing: Easing.Linear);
+        });
+        ResetTracking = new Command((view) =>
+        {
+            if (view is not GoogleTilesView gtv) return;
+
+            gtv.TrackUserLocation = true;
+        });
         AddTestPathIncremental = new Command((view) =>
         {
             if (view is not GoogleTilesView gtv) return;
@@ -93,6 +110,39 @@ public class MainViewModel : INotifyPropertyChanged
             polyline.Positions.Add(new GeoCoordinate(40.7750, -111.8830));
 
             gtv.Polylines.Add(polyline);
+        });
+        AddTestCircle = new Command((view) =>
+        {
+            if (view is not GoogleTilesView gtv)
+                return;
+
+            var circle = new Circle
+            {
+                EdgeColor = Colors.Aqua,
+                FillColor = Color.FromRgba(25, 96, 32, 0.6),
+                Position = new GeoCoordinate(40.7608, -111.8910),
+                RadiusInFeet = 400
+            };
+
+            gtv.Circles.Add(circle);
+        });
+        AddPolygon = new Command((view) =>
+        {
+            if (view is not GoogleTilesView gtv)
+                return;
+            var polygon = new Polygon
+            {
+                EdgeColor = Colors.Aqua,
+                FillColor = Colors.Aqua.WithAlpha(0.6f)
+            };
+
+            polygon.Positions.Add(new GeoCoordinate(40.7608, -111.8910));
+            polygon.Positions.Add(new GeoCoordinate(40.7650, -111.8910));
+            polygon.Positions.Add(new GeoCoordinate(40.7700, -111.8880));
+            polygon.Positions.Add(new GeoCoordinate(40.7650, -111.8850));
+            polygon.Positions.Add(new GeoCoordinate(40.7608, -111.8850));
+
+            gtv.Polygons.Add(polygon);
         });
         SetRotation = new Command((rotation) =>
         {

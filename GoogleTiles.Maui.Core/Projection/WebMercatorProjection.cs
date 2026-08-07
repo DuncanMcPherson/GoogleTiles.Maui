@@ -3,17 +3,26 @@ using GoogleTiles.Maui.Core.Viewport;
 
 namespace GoogleTiles.Maui.Core.Projection;
 
-internal static class WebMercatorProjection
+public static class WebMercatorProjection
 {
     public const int TileSize = 256;
     public const int MinZoom = 0;
-    public const int MaxZoom = 22;
+    public const int MaxZoom = 22; 
+    private const double EarthCircumferenceMeters = 40075016.6856;
+    private const double FeetToMeters = 0.3048;
 
-    public static TilePixelPosition ToCanvasPoint(
+    public static float GetRadiusInPixels(float radiusFeet, double latitude, int zoom)
+    {
+        var worldSize = (1 << zoom) * TileSize;
+        var metersPerPixel = EarthCircumferenceMeters * Math.Cos(latitude * Math.PI / 180.0) / worldSize;
+        var radiusMeters = radiusFeet * FeetToMeters;
+        return (float)(radiusMeters / metersPerPixel);
+    }
+
+    internal static TilePixelPosition ToCanvasPoint(
         GeoCoordinate coordinate,
         GeoCoordinate center,
         int zoom,
-        float rotationDegrees,
         int canvasWidth,
         int canvasHeight)
     {
@@ -94,7 +103,7 @@ internal static class WebMercatorProjection
         return center with { Latitude = latitude };
     }
 
-    public static (double Latitude, double Longitude) ToLatLngCenter(TileCoordinate tile)
+    internal static (double Latitude, double Longitude) ToLatLngCenter(TileCoordinate tile)
     {
         var (topLat, leftLng) = ToLatLng(tile);
         var (bottomLat, rightLng) = ToLatLng(new TileCoordinate(tile.X + 1, tile.Y + 1, tile.Zoom));
@@ -114,7 +123,7 @@ internal static class WebMercatorProjection
         return new TileCoordinate(x, y, zoom);
     }
 
-    public static (double Latitude, double Longitude) ToLatLng(TileCoordinate tile)
+    internal static (double Latitude, double Longitude) ToLatLng(TileCoordinate tile)
     {
         ValidateZoom(tile.Zoom);
 

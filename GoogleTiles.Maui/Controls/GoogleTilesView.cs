@@ -1,4 +1,5 @@
 ﻿using System.Diagnostics;
+using System.Windows.Input;
 using GoogleTiles.Maui.Abstractions;
 using GoogleTiles.Maui.Core.Abstractions;
 using GoogleTiles.Maui.Core.Models;
@@ -22,7 +23,8 @@ public class GoogleTilesView : SKGLView
         nameof(Center),
         typeof(GeoCoordinate),
         typeof(GoogleTilesView),
-        new GeoCoordinate(0, 0));
+        new GeoCoordinate(0, 0),
+        propertyChanged:OnMapCenterChanged);
 
     public static readonly BindableProperty ZoomLevelProperty = BindableProperty.Create(
         nameof(ZoomLevel),
@@ -50,6 +52,18 @@ public class GoogleTilesView : SKGLView
         typeof(GoogleTilesView),
         0f,
         propertyChanged: OnMapRotationChanged);
+
+    public static readonly BindableProperty IsLocationVisibleProperty = BindableProperty.Create(
+        nameof(IsLocationVisible),
+        typeof(bool),
+        typeof(GoogleTilesView),
+        true);
+
+    public static readonly BindableProperty TrackUserLocationProperty = BindableProperty.Create(
+        nameof(TrackUserLocation),
+        typeof(bool),
+        typeof(GoogleTilesView),
+        true);
 
     public GeoCoordinate Center
     {
@@ -89,6 +103,36 @@ public class GoogleTilesView : SKGLView
         set => SetValue(MapRotationProperty, value);
     }
 
+    public bool IsLocationVisible
+    {
+        get => (bool)GetValue(IsLocationVisibleProperty);
+        set
+        {
+            SetValue(IsLocationVisibleProperty, value);
+            switch (value)
+            {
+                case true when Location is null:
+                    Location = new LocationLayer();
+                    break;
+                case true:
+                    Location!.IsVisible = true;
+                    break;
+                default:
+                {
+                    if (Location is not null && !value)
+                        Location!.IsVisible = false;
+                    break;
+                }
+            }
+        }
+    }
+
+    public bool TrackUserLocation
+    {
+        get => (bool)GetValue(TrackUserLocationProperty);
+        set => SetValue(TrackUserLocationProperty, value);
+    }
+
     #endregion
 
     #region State
@@ -106,8 +150,29 @@ public class GoogleTilesView : SKGLView
     private readonly List<IMapLayer> _layers = [];
     private TileLayer? _tileLayer;
     private AttributionLayer? _attributionLayer;
+    private LocationLayer? _locationLayer;
+
+    private const string CameraAnimationName = "CameraAnimation";
 
     private CancellationTokenSource _cts = new();
+
+    public LocationLayer? Location
+    {
+        get => _locationLayer;
+        private set
+        {
+            var prior = _locationLayer;
+            _locationLayer = value;
+            if (value is not null)
+            {
+                AddLayer(value);
+                value.OnUpdateCenter += LocationUpdated;
+            }
+            else
+                _layers.Remove(prior!);
+            InvalidateSurface();
+        }
+    }
 
     public PinLayer Pins
     {
@@ -135,6 +200,42 @@ public class GoogleTilesView : SKGLView
         }
     }
 
+    public CirclesLayer Circles
+    {
+        get
+        {
+            var layer = _layers.OfType<CirclesLayer>().FirstOrDefault();
+            if (layer is not null) return layer;
+            layer = new CirclesLayer();
+            AddLayer(layer);
+
+            return layer;
+        }
+    }
+
+    public PolygonLayer Polygons
+    {
+        get
+        {
+            var layer = _layers.OfType<PolygonLayer>().FirstOrDefault();
+            if (layer is not null) return layer;
+            layer = new PolygonLayer();
+            AddLayer(layer);
+
+            return layer;
+        }
+    }
+
+    #endregion
+
+    #region Commands
+
+    public ICommand ZoomInCommand { get; private set; }
+    public ICommand ZoomOutCommand { get; private set; }
+    public ICommand ResetRotationCommand { get; private set; }
+    public ICommand RecenterCommand { get; private set; }
+    public ICommand ToggleMapTypeCommand { get; private set; }
+
     #endregion
 
     #region Public Methods
@@ -150,6 +251,69 @@ public class GoogleTilesView : SKGLView
         var attributionIndex = _layers.IndexOf(_attributionLayer);
         _layers.Insert(attributionIndex, layer);
         InvalidateSurface();
+    }
+
+    public Task AnimateCameraAsync(
+        GeoCoordinate targetCenter,
+        float targetRotationDegrees,
+        TimeSpan? duration = null,
+        Easing? easing = null)
+    {
+        TrackUserLocation = false;
+        this.AbortAnimation(CameraAnimationName);
+        var startFraction = ToMercatorFraction(Center);
+        var endFraction = ToMercatorFraction(targetCenter);
+        var startRotation = MapRotation;
+
+        var tcs = new TaskCompletionSource();
+
+        var animation = new Animation(t =>
+        {
+            var x = startFraction.x + (endFraction.x - startFraction.x) * t;
+            var y = startFraction.y + (endFraction.y - startFraction.y) * t;
+            Center = FromMercatorFraction(x, y);
+            MapRotation = LerpAngleDegrees(startRotation, targetRotationDegrees, t);
+        });
+
+        animation.Commit(
+            this,
+            CameraAnimationName,
+            length: (uint)(duration ?? TimeSpan.FromMilliseconds(500)).TotalMilliseconds,
+            easing: easing ?? Easing.CubicInOut,
+            finished: (_, cancelled) =>
+            {
+                if (!cancelled)
+                {
+                    Center = targetCenter;
+                    MapRotation = targetRotationDegrees;
+                }
+
+                tcs.TrySetResult();
+            });
+
+        return tcs.Task;
+    }
+
+    private static (double x, double y) ToMercatorFraction(GeoCoordinate coord)
+    {
+        var x = (coord.Longitude + 180) / 360.0;
+        var latRad = coord.Latitude * Math.PI / 180.0;
+        var y = (1.0 - Math.Log(Math.Tan(latRad) + 1.0 / Math.Cos(latRad)) / Math.PI) / 2.0;
+        return (x, y);
+    }
+
+    private static GeoCoordinate FromMercatorFraction(double x, double y)
+    {
+        var lon = x * 360.0 - 180.0;
+        var n = Math.PI - 2.0 * Math.PI * y;
+        var lat = 180.0 / Math.PI * Math.Atan(Math.Sinh(n));
+        return new GeoCoordinate(lat, lon);
+    }
+
+    private static float LerpAngleDegrees(float from, float to, double t)
+    {
+        var delta = ((to - from + 540) % 360) - 180;
+        return (float)(from + delta * t);
     }
 
     #endregion
@@ -175,6 +339,7 @@ public class GoogleTilesView : SKGLView
             _zoomScale,
             _canvasSize,
             matrix,
+            TrackUserLocation,
             MapRotation);
 
         var needsTransform = Math.Abs(_zoomScale - 1.0) > 0.0001 || MapRotation != 0f;
@@ -222,6 +387,11 @@ public class GoogleTilesView : SKGLView
         (_attributionLayer as IMapLayer).Draw(canvas, e.Info, context);
     }
 
+    private void LocationUpdated(GeoCoordinate newCenter)
+    {
+        Center = newCenter;
+    }
+
     #endregion
 
     #region Setup
@@ -246,7 +416,36 @@ public class GoogleTilesView : SKGLView
 
         _layers.Add(_tileLayer);
         _layers.Add(_attributionLayer);
+        if (IsLocationVisible && Location is null)
+            Location = new LocationLayer();
         InitializeGestures();
+        InitializeCommands();
+    }
+
+    private void InitializeCommands()
+    {
+        ZoomInCommand = new Command(() =>
+        {
+            ZoomLevel = Math.Min(ZoomLevel + 1, WebMercatorProjection.MaxZoom);
+        }, () => ZoomLevel < WebMercatorProjection.MaxZoom);
+        ZoomOutCommand = new Command(() =>
+        {
+            ZoomLevel = Math.Max(ZoomLevel - 1, WebMercatorProjection.MinZoom);
+        }, () => ZoomLevel > WebMercatorProjection.MinZoom);
+        ResetRotationCommand = new Command(() => MapRotation = 0f);
+        RecenterCommand = new Command(() => Center = _locationLayer?.CurrentLocation ?? Center,
+            () => _locationLayer?.CurrentLocation is not null && _locationLayer.IsVisible);
+
+        ToggleMapTypeCommand = new Command(() =>
+        {
+            MapType = MapType switch
+            {
+                MapType.Roadmap => MapType.Satellite,
+                MapType.Satellite => MapType.Terrain,
+                _ => MapType.Roadmap
+            };
+        });
+
     }
 
     internal void Cleanup()
@@ -358,6 +557,12 @@ public class GoogleTilesView : SKGLView
         }
     }
 
+    private static void OnMapCenterChanged(BindableObject bindable, object oldValue, object newValue)
+    {
+        if (bindable is GoogleTilesView view)
+            view.InvalidateSurface();
+    }
+
     internal void OnScrollZoom(float delta)
     {
         if (_baseZoomLevel == 0)
@@ -420,6 +625,7 @@ public class GoogleTilesView : SKGLView
 
     private void ApplyPanDelta(float deltaX, float deltaY)
     {
+        TrackUserLocation = false;
         var radians = -MapRotation * Math.PI / 180.0;
         var rotatedDeltaX = deltaX * Math.Cos(radians) - deltaY * Math.Sin(radians);
         var rotatedDeltaY = deltaX * Math.Sin(radians) + deltaY * Math.Cos(radians);
