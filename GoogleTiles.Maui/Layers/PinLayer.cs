@@ -91,7 +91,7 @@ public class PinLayer : MapLayer, IEnumerable<Pin>, IRequiresDependencyInjection
 
     private void DrawPin(SKCanvas canvas, SKBitmap bitmap, TilePixelPosition position, Pin pin, SKMatrix matrix, float canvasRotation)
     {
-        // canvas.Save();
+        canvas.Save();
 
         var anchorX = position.X;
         var anchorY = position.Y;
@@ -106,7 +106,7 @@ public class PinLayer : MapLayer, IEnumerable<Pin>, IRequiresDependencyInjection
         canvas.DrawBitmap(bitmap, new SKPoint(-bitmap.Width / 2f, -bitmap.Height), new SKSamplingOptions(SKFilterMode.Linear));
         canvas.Translate(-anchorX, -anchorY);
 
-        // canvas.Restore();
+        canvas.Restore();
     }
 
     private void DrawLabel(
@@ -137,8 +137,10 @@ public class PinLayer : MapLayer, IEnumerable<Pin>, IRequiresDependencyInjection
 
         var labelY = position.Y + 4f;
 
+        canvas.Save();
         canvas.DrawText(label, position.X, labelY, SKTextAlign.Center, font, strokePaint);
         canvas.DrawText(label, position.X, labelY, SKTextAlign.Center, font, paint);
+        canvas.Restore();
     }
 
     private SKBitmap? ResolveBitmap(Pin pin)

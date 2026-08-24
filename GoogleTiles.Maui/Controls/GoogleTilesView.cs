@@ -17,6 +17,11 @@ namespace GoogleTiles.Maui.Controls;
 
 public class GoogleTilesView : SKGLView
 {
+    #region Events
+
+    public event EventHandler<GeoCoordinate>? MapTapped;
+
+    #endregion
     #region Bindable Properties
 
     public static readonly BindableProperty CenterProperty = BindableProperty.Create(
@@ -322,6 +327,9 @@ public class GoogleTilesView : SKGLView
 
     protected override void OnPaintSurface(SKPaintGLSurfaceEventArgs e)
     {
+        if (e.Surface == null || e.BackendRenderTarget.Width <= 0 || e.BackendRenderTarget.Height <= 0 ||
+            !e.BackendRenderTarget.IsValid)
+            return;
         base.OnPaintSurface(e);
 
         if (_tileFetcher is null || _options is null)
@@ -401,7 +409,8 @@ public class GoogleTilesView : SKGLView
         GoogleTilesOptions options, ViewportMetadataFetcher metadataFetcher,
         RotationGestureHandler rotationHandler)
     {
-
+        EnableTouchEvents = true;
+        Touch += OnMapTouch;
         _tileFetcher = tileFetcher;
         _options = options;
         _rotationHandler = rotationHandler;
@@ -420,6 +429,17 @@ public class GoogleTilesView : SKGLView
             Location = new LocationLayer();
         InitializeGestures();
         InitializeCommands();
+    }
+
+    private void OnMapTouch(object? sender, SKTouchEventArgs e)
+    {
+        if (e.ActionType == SKTouchAction.Released)
+        {
+            var screenPoint = e.Location;
+            var latLng = WebMercatorProjection.ScreenToLatLng(screenPoint, Center, ZoomLevel, (int)CanvasSize.Width, (int)CanvasSize.Height);
+            MapTapped?.Invoke(this, latLng);
+            e.Handled = true;
+        }
     }
 
     private void InitializeCommands()

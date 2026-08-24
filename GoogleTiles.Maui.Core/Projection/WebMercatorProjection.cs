@@ -1,5 +1,6 @@
 ﻿using GoogleTiles.Maui.Core.Models;
 using GoogleTiles.Maui.Core.Viewport;
+using SkiaSharp;
 
 namespace GoogleTiles.Maui.Core.Projection;
 
@@ -11,12 +12,37 @@ public static class WebMercatorProjection
     private const double EarthCircumferenceMeters = 40075016.6856;
     private const double FeetToMeters = 0.3048;
 
-    public static float GetRadiusInPixels(float radiusFeet, double latitude, int zoom)
+    internal static float GetRadiusInPixels(float radiusFeet, double latitude, int zoom)
     {
         var worldSize = (1 << zoom) * TileSize;
         var metersPerPixel = EarthCircumferenceMeters * Math.Cos(latitude * Math.PI / 180.0) / worldSize;
         var radiusMeters = radiusFeet * FeetToMeters;
         return (float)(radiusMeters / metersPerPixel);
+    }
+
+    internal static GeoCoordinate ScreenToLatLng(SKPoint point, GeoCoordinate centerPoint, int zoom, int canvasWidth, int canvasHeight)
+    {
+        ValidateZoom(zoom);
+        var worldSize = (1 << zoom) * TileSize;
+
+        // project center coordinate to world pixel
+        var centerX = (centerPoint.Longitude + 180.0) / 360.0 * worldSize;
+        var sinLat = Math.Sin(centerPoint.Latitude * Math.PI / 180.0);
+        var centerY = (0.5 - Math.Log((1 + sinLat) / (1 - sinLat)) / (4 * Math.PI)) * worldSize;
+
+        // calculate offset of tap
+        var offsetX = point.X - (canvasWidth / 2.0);
+        var offsetY = point.Y - (canvasHeight / 2.0);
+
+        var targetX = centerX + offsetX;
+        var targetY = centerY + offsetY;
+
+        // convert back to lat/lng
+        var lng = (targetX / worldSize) * 360.0 - 180.0;
+        var n = Math.PI - 2 * Math.PI * targetY / worldSize;
+        var lat = 180.0 / Math.PI * Math.Atan(Math.Sinh(n));
+
+        return new GeoCoordinate(lat, lng);
     }
 
     internal static TilePixelPosition ToCanvasPoint(
