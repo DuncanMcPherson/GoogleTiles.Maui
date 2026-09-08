@@ -18,6 +18,12 @@ public class PolygonLayer : MapLayer, IEnumerable<Polygon>
         RequestRepaint();
     }
 
+    public void AddRange(IEnumerable<Polygon> shapes)
+    {
+        _polygons.AddRange(shapes);
+        RequestRepaint();
+    }
+
     public void Remove(Polygon polygon)
     {
         _polygons.Remove(polygon);

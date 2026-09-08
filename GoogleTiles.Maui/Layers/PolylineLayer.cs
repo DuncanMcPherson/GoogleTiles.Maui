@@ -21,6 +21,17 @@ public class PolylineLayer : MapLayer, IEnumerable<Polyline>
         RequestRepaint();
     }
 
+    public void AddRange(IEnumerable<Polyline> lines)
+    {
+        var list = lines.ToList();
+        _polylines.AddRange(list);
+        foreach (var line in list)
+        {
+            line.Positions.CollectionChanged += (sender, args) => RequestRepaint();
+        }
+        RequestRepaint();
+    }
+
     public void Remove(Polyline polyline)
     {
         _polylines.Remove(polyline);

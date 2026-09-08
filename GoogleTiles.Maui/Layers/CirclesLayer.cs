@@ -20,6 +20,12 @@ public class CirclesLayer : MapLayer, IEnumerable<Circle>
         RequestRepaint();
     }
 
+    public void AddRange(IEnumerable<Circle> circles)
+    {
+        _circles.AddRange(circles);
+        RequestRepaint();
+    }
+
     public void Remove(Circle circle)
     {
         _circles.Remove(circle);

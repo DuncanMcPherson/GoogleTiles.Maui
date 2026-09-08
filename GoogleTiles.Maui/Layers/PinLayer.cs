@@ -35,7 +35,13 @@ public class PinLayer : MapLayer, IEnumerable<Pin>, IRequiresDependencyInjection
         RequestRepaint();
     }
 
-    public void Remove(Pin pin, bool keepCache = false)
+    public void AddRange(IEnumerable<Pin> pins)
+    {
+        _pins.AddRange(pins);
+        RequestRepaint();
+    }
+
+    public void Remove(Pin pin, bool keepCache = true)
     {
         _pins.Remove(pin);
         if (!keepCache)

@@ -22,6 +22,7 @@ public class GoogleTilesView : SKGLView
     public event EventHandler<GeoCoordinate>? MapTapped;
 
     #endregion
+
     #region Bindable Properties
 
     public static readonly BindableProperty CenterProperty = BindableProperty.Create(
@@ -29,7 +30,7 @@ public class GoogleTilesView : SKGLView
         typeof(GeoCoordinate),
         typeof(GoogleTilesView),
         new GeoCoordinate(0, 0),
-        propertyChanged:OnMapCenterChanged);
+        propertyChanged: OnMapCenterChanged);
 
     public static readonly BindableProperty ZoomLevelProperty = BindableProperty.Create(
         nameof(ZoomLevel),
@@ -175,6 +176,7 @@ public class GoogleTilesView : SKGLView
             }
             else
                 _layers.Remove(prior!);
+
             InvalidateSurface();
         }
     }
@@ -358,7 +360,7 @@ public class GoogleTilesView : SKGLView
         {
             Debug.WriteLine($"Canvas Size from e.Info: {e.Info.Width}x{e.Info.Height}");
             Debug.WriteLine($"_canvasSize: {_canvasSize.Width}x{_canvasSize.Height}");
-            
+
             // canvas.Save();
             var cx = _canvasSize.Width / 2f;
             var cy = _canvasSize.Height / 2f;
@@ -431,27 +433,83 @@ public class GoogleTilesView : SKGLView
         InitializeCommands();
     }
 
+    private readonly Dictionary<long, SKPoint> _activeTouches = new();
+    private readonly Dictionary<long, SKPoint> _pressLocations = new();
+    private readonly HashSet<long> _movedBeyondThreshold = [];
+    private const float TapMoveThreshold = 10f;
+    private bool _wasMultiTouch;
+
     private void OnMapTouch(object? sender, SKTouchEventArgs e)
     {
-        if (e.ActionType == SKTouchAction.Released)
+        if (e is { InContact: false, ActionType: not SKTouchAction.Released and not SKTouchAction.Cancelled })
         {
-            var screenPoint = e.Location;
-            var latLng = WebMercatorProjection.ScreenToLatLng(screenPoint, Center, ZoomLevel, (int)CanvasSize.Width, (int)CanvasSize.Height);
-            MapTapped?.Invoke(this, latLng);
             e.Handled = true;
+            return;
         }
+        switch (e.ActionType)
+        {
+            case SKTouchAction.Pressed:
+                if (_activeTouches.Count >= 2)
+                    break;
+                _activeTouches[e.Id] = e.Location;
+                _pressLocations[e.Id] = e.Location;
+                if (_activeTouches.Count > 1)
+                    _wasMultiTouch = true;
+                break;
+            case SKTouchAction.Moved:
+                if (_activeTouches.Count == 1)
+                {
+                    if (_activeTouches.TryGetValue(e.Id, out var old))
+                        OnPanUpdated(old, e.Location);
+
+                    if (!_movedBeyondThreshold.Contains(e.Id)
+                        && _pressLocations.TryGetValue(e.Id, out var start)
+                        && Distance(start, e.Location) > TapMoveThreshold)
+                    {
+                        _movedBeyondThreshold.Add(e.Id);
+                    }
+                }
+                else if (_activeTouches.Count == 2)
+                {
+                    // TODO: Uncomment after OnPinchUpdated has been refactored
+                    // OnPinchUpdated() // need to figure out the signature for this
+                }
+
+                _activeTouches[e.Id] = e.Location;
+                break;
+            case SKTouchAction.Released:
+            case SKTouchAction.Cancelled:
+                if (e.ActionType == SKTouchAction.Released && !_wasMultiTouch && !_movedBeyondThreshold.Contains(e.Id))
+                {
+                    var coord = WebMercatorProjection.ScreenToLatLng(e.Location, Center, ZoomLevel, _canvasSize.Width,
+                        _canvasSize.Height);
+                    MapTapped?.Invoke(this, coord);
+                }
+
+                _activeTouches.Remove(e.Id);
+                _pressLocations.Remove(e.Id);
+                _movedBeyondThreshold.Remove(e.Id);
+                if (_activeTouches.Count == 0)
+                    _wasMultiTouch = false;
+                break;
+        }
+
+        e.Handled = true;
+    }
+
+    private static float Distance(SKPoint a, SKPoint b)
+    {
+        var dx = a.X - b.X;
+        var dy = a.Y - b.Y;
+        return MathF.Sqrt(dx * dx + dy * dy);
     }
 
     private void InitializeCommands()
     {
-        ZoomInCommand = new Command(() =>
-        {
-            ZoomLevel = Math.Min(ZoomLevel + 1, WebMercatorProjection.MaxZoom);
-        }, () => ZoomLevel < WebMercatorProjection.MaxZoom);
-        ZoomOutCommand = new Command(() =>
-        {
-            ZoomLevel = Math.Max(ZoomLevel - 1, WebMercatorProjection.MinZoom);
-        }, () => ZoomLevel > WebMercatorProjection.MinZoom);
+        ZoomInCommand = new Command(() => { ZoomLevel = Math.Min(ZoomLevel + 1, WebMercatorProjection.MaxZoom); },
+            () => ZoomLevel < WebMercatorProjection.MaxZoom);
+        ZoomOutCommand = new Command(() => { ZoomLevel = Math.Max(ZoomLevel - 1, WebMercatorProjection.MinZoom); },
+            () => ZoomLevel > WebMercatorProjection.MinZoom);
         ResetRotationCommand = new Command(() => MapRotation = 0f);
         RecenterCommand = new Command(() => Center = _locationLayer?.CurrentLocation ?? Center,
             () => _locationLayer?.CurrentLocation is not null && _locationLayer.IsVisible);
@@ -465,7 +523,6 @@ public class GoogleTilesView : SKGLView
                 _ => MapType.Roadmap
             };
         });
-
     }
 
     internal void Cleanup()
@@ -490,9 +547,6 @@ public class GoogleTilesView : SKGLView
     {
         if (DeviceInfo.Platform == DevicePlatform.WinUI)
             return;
-        var panGesture = new PanGestureRecognizer();
-        panGesture.PanUpdated += OnPanUpdated;
-        GestureRecognizers.Add(panGesture);
         var pinchGesture = new PinchGestureRecognizer();
         pinchGesture.PinchUpdated += OnPinchUpdated;
         GestureRecognizers.Add(pinchGesture);
@@ -507,27 +561,11 @@ public class GoogleTilesView : SKGLView
         _deltaRotation = 0f;
     }
 
-    private void OnPanUpdated(object? sender, PanUpdatedEventArgs e)
+    private void OnPanUpdated(SKPoint old, SKPoint newPoint)
     {
-        if (_rotationHandler?.IsTwoFingerGesture ?? false)
-            return;
-        switch (e.StatusType)
-        {
-            case GestureStatus.Started:
-                _lastPanPosition = new PointF((float)e.TotalX, (float)e.TotalY); break;
-            case GestureStatus.Running:
-                var deltaX = (float)e.TotalX - _lastPanPosition.X;
-                var deltaY = (float)e.TotalY - _lastPanPosition.Y;
-                _lastPanPosition = new PointF((float)e.TotalX, (float)e.TotalY);
-
-                ApplyPanDelta(deltaX, deltaY);
-                break;
-            case GestureStatus.Completed:
-            case GestureStatus.Canceled:
-            default:
-                _lastPanPosition = PointF.Zero;
-                break;
-        }
+        var deltaX = newPoint.X - old.X;
+        var deltaY = newPoint.Y - old.Y;
+        ApplyPanDelta(deltaX, deltaY);
     }
 
     private void OnPinchUpdated(object? sender, PinchGestureUpdatedEventArgs e)
